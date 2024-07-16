@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const https = require('https');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -20,6 +21,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// Redirect HTTP to HTTPS (optional, if you want HTTPS only)
+app.use((req, res, next) => {
+  if (req.secure) {
+    next();
+  } else {
+    res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+});
+
 // Serve static files (if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -30,7 +40,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   }
 
   const fileId = path.parse(req.file.filename).name; // Extract fileId from filename
-  const modelUrl = `https://arcane-fortress-30772-d4e41a90165d.herokuapp.com/view/${fileId}`;
+  const modelUrl = `https://your-domain.com/view/${fileId}`; // Replace with your actual domain
 
   res.json({ modelUrl });
 });
@@ -83,6 +93,12 @@ app.get('/view/:fileId', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+// Create HTTPS server with self-signed certificate
+const options = {
+  key: fs.readFileSync('server.key'), // Replace with your private key path
+  cert: fs.readFileSync('server.crt'), // Replace with your certificate path
+};
+
+https.createServer(options, app).listen(port, () => {
+  console.log(`Server is running on https://localhost:${port}`);
 });
