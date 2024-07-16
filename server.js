@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-import { nanoid } from 'nanoid';
+const { nanoid } = require('nanoid');
 const fs = require('fs');
 
 const app = express();
