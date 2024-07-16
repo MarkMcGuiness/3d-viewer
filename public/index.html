@@ -3,48 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D File Upload</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f0f0f0;
-    }
-    form {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    input[type="file"] {
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    #fileLink {
-      margin-top: 20px;
-    }
-  </style>
-  <script defer src="client.js"></script>
+  <title>Upload and Share 3D Model</title>
 </head>
 <body>
-  <h1>Upload a 3D File</h1>
-  <form id="uploadForm">
-    <input type="file" id="fileInput" name="file" accept=".glb" required>
-    <button type="submit">Upload</button>
-  </form>
-  <div id="fileLink"></div>
+  <h1>Upload a .glb File</h1>
+  <div id="drop-area">
+    <p>Drag and drop a .glb file here</p>
+    <input type="file" id="fileElem" accept=".glb" style="display:none">
+    <label for="fileElem">Or click to select a file</label>
+  </div>
+
+  <p id="status">Status: Waiting for file</p>
+  <p id="url">URL: </p>
+
+  <script>
+    const dropArea = document.getElementById('drop-area');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+
+      handleFiles(files);
+    }
+
+    function handleFiles(files) {
+      [...files].forEach(uploadFile);
+    }
+
+    function uploadFile(file) {
+      const url = '/upload';
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch(url, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        const { modelUrl } = data;
+        document.getElementById('status').textContent = 'Status: File uploaded';
+        document.getElementById('url').textContent = `URL: ${modelUrl}`;
+
+        // Copy the URL to clipboard
+        copyToClipboard(modelUrl);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('status').textContent = 'Status: Upload failed';
+      });
+    }
+
+    function copyToClipboard(text) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+  </script>
 </body>
 </html>

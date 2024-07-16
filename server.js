@@ -1,59 +1,86 @@
-const AWS = require('aws-sdk');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configure AWS SDK with your credentials
-AWS.config.update({
-  accessKeyId: process.env.AKIA2UC27CRZ4NJ2I4NG,
-  secretAccessKey: process.env.QhnwxbhEUFmJc9V6P5COabjcL19SB7VvCvMuNKNs,
-  region: process.env.us-east-2
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const fileId = uuidv4();
+    const extension = path.extname(file.originalname);
+    cb(null, `${fileId}${extension}`);
+  },
 });
 
-const s3 = new AWS.S3();
+const upload = multer({ storage: storage });
 
-const upload = multer({
-  storage: multer.memoryStorage(), // Uploads file to memory
-  limits: { fileSize: 5 * 1024 * 1024 } // Limit file size if needed
-});
-
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
 
+// Handle file upload and generate URL
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
   }
 
-  // Generate a unique identifier for the file
-  const fileId = uuidv4();
+  const fileId = path.parse(req.file.filename).name; // Extract fileId from filename
+  const modelUrl = `https://your-domain-name.com/view/${fileId}`; // Replace with your actual domain
 
-  // Define params for uploading to S3
-  const params = {
-    Bucket: process.env.arcane-fortress-30772,
-    Key: `${fileId}-${req.file.originalname}`,
-    Body: req.file.buffer,
-    ContentType: req.file.mimetype,
-    ACL: 'public-read' // Allow public access to the uploaded file
-  };
+  res.json({ modelUrl });
+});
 
-  // Upload file to S3
-  s3.upload(params, (err, data) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).send('Failed to upload file to S3.');
-    }
+// Serve the 3D model viewer
+app.get('/view/:fileId', (req, res) => {
+  const filePath = path.join(__dirname, 'uploads', req.params.fileId);
 
-    // Construct the URL for accessing the file
-    const fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
-
-    // Respond with the generated file URL
-    res.json({ fileUrl });
-  });
+  // Check if the file exists
+  if (fs.existsSync(filePath)) {
+    // Render HTML with a 3D model viewer (using Three.js or any other WebGL library)
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>3D Model Viewer</title>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.131.2/build/three.min.js"></script>
+      </head>
+      <body>
+        <script>
+          const scene = new THREE.Scene();
+          const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+          const renderer = new THREE.WebGLRenderer();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          document.body.appendChild(renderer.domElement);
+          
+          const loader = new THREE.GLTFLoader();
+          loader.load('${req.params.fileId}', function (gltf) {
+            scene.add(gltf.scene);
+          }, undefined, function (error) {
+            console.error(error);
+          });
+          
+          camera.position.z = 5;
+          
+          const animate = function () {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+          };
+          
+          animate();
+        </script>
+      </body>
+      </html>
+    `);
+  } else {
+    res.status(404).send('File not found');
+  }
 });
 
 app.listen(port, () => {
