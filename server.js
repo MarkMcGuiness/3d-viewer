@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Serve static files
+// Serve static files (if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Handle file upload and generate URL
@@ -30,7 +30,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   }
 
   const fileId = path.parse(req.file.filename).name; // Extract fileId from filename
-  const modelUrl = `https://your-domain-name.com/view/${fileId}`; // Replace with your actual domain
+  const modelUrl = `https://arcane-fortress-30772-d4e41a90165d.herokuapp.com/view/${fileId}`;
 
   res.json({ modelUrl });
 });
@@ -60,7 +60,7 @@ app.get('/view/:fileId', (req, res) => {
           document.body.appendChild(renderer.domElement);
           
           const loader = new THREE.GLTFLoader();
-          loader.load('${req.params.fileId}', function (gltf) {
+          loader.load('/uploads/${req.params.fileId}', function (gltf) {
             scene.add(gltf.scene);
           }, undefined, function (error) {
             console.error(error);
